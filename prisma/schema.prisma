@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Recipient {
+  id                String               @id @default(uuid())
+  firstName         String
+  lastName          String
+  birthMonth        Int
+  birthDay          Int
+  street            String
+  city              String
+  state             String
+  zip               String
+  holidayPreference String               @default("christmas")
+  isActive          Boolean              @default(true)
+  notes             String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  cards             Card[]
+  occasionRecipients OccasionRecipient[]
+}
+
+model Occasion {
+  id          String               @id @default(uuid())
+  name        String
+  type        String
+  date        String?
+  isRecurring Boolean              @default(true)
+  isBuiltIn   Boolean              @default(false)
+  message     String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  cards       Card[]
+  occasionRecipients OccasionRecipient[]
+}
+
+model OccasionRecipient {
+  id          String    @id @default(uuid())
+  occasionId  String
+  recipientId String
+  occasion    Occasion  @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+  recipient   Recipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([occasionId, recipientId])
+}
+
+model Card {
+  id          String    @id @default(uuid())
+  recipientId String
+  occasionId  String
+  message     String
+  sendDate    DateTime
+  status      String    @default("pending")
+  year        Int
+  recipient   Recipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  occasion    Occasion  @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([recipientId, occasionId, year])
+}
+
+model Settings {
+  id           String   @id @default("default")
+  businessName String   @default("")
+  returnStreet String   @default("")
+  returnCity   String   @default("")
+  returnState  String   @default("")
+  returnZip    String   @default("")
+  leadTimeDays Int      @default(14)
+  cardSize     String   @default("5x7")
+  updatedAt    DateTime @updatedAt
+}
