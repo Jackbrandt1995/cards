@@ -44,27 +44,53 @@ export default function ImportPage() {
       complete: (results) => {
         try {
           const rows: ParsedRow[] = results.data.map((row: any) => {
-            // Flexible column name matching
+            // Case-insensitive column lookup: find header that matches any of the candidate keys
             const get = (keys: string[]) => {
-              for (const k of keys) {
-                const val = row[k] || row[k.toLowerCase()] || row[k.toUpperCase()];
-                if (val) return val.toString().trim();
+              const lowerKeys = keys.map((k) => k.toLowerCase());
+              for (const header of Object.keys(row)) {
+                if (lowerKeys.includes(header.toLowerCase().trim())) {
+                  const val = row[header];
+                  if (val != null && val !== "") return val.toString().trim();
+                }
               }
               return "";
             };
 
             // Parse birthday from various formats
             let birthMonth = 1, birthDay = 1;
-            const birthday = get(["birthday", "Birthday", "birth_date", "birthdate", "DOB", "dob"]);
+            const birthday = get(["birthday", "birth_date", "birthdate", "DOB", "date_of_birth", "birth date", "date of birth"]);
             if (birthday) {
-              const parts = birthday.match(/(\d{1,2})[\/\-](\d{1,2})/);
-              if (parts) {
-                birthMonth = parseInt(parts[1]);
-                birthDay = parseInt(parts[2]);
+              // Try MM/DD or MM-DD (2 parts)
+              const slashParts = birthday.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+              if (slashParts) {
+                birthMonth = parseInt(slashParts[1]);
+                birthDay = parseInt(slashParts[2]);
+              } else {
+                // Try MM/DD/YYYY or MM-DD-YYYY
+                const fullSlash = birthday.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-]\d{2,4}$/);
+                if (fullSlash) {
+                  birthMonth = parseInt(fullSlash[1]);
+                  birthDay = parseInt(fullSlash[2]);
+                } else {
+                  // Try YYYY-MM-DD (ISO format)
+                  const iso = birthday.match(/^\d{4}-(\d{1,2})-(\d{1,2})/);
+                  if (iso) {
+                    birthMonth = parseInt(iso[1]);
+                    birthDay = parseInt(iso[2]);
+                  } else {
+                    // Try parsing as a Date string (e.g., "March 15, 1990")
+                    const parsed = new Date(birthday);
+                    if (!isNaN(parsed.getTime())) {
+                      birthMonth = parsed.getMonth() + 1;
+                      birthDay = parsed.getDate();
+                    }
+                  }
+                }
               }
             } else {
-              const m = get(["birthMonth", "birth_month", "BirthMonth"]);
-              const d = get(["birthDay", "birth_day", "BirthDay"]);
+              // Try separate birthMonth / birthDay columns
+              const m = get(["birthMonth", "birth_month"]);
+              const d = get(["birthDay", "birth_day"]);
               if (m) birthMonth = parseInt(m);
               if (d) birthDay = parseInt(d);
             }
